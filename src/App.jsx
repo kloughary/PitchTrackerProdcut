@@ -32,6 +32,7 @@ import logo from "./assets/Casual Logo with Centered Design Elements.svg";
 import { motion, AnimatePresence, useMotionValue, useAnimation, useTransform } from "framer-motion";
 
 const STORAGE_KEY = "pitchTracker";
+const GUIDE_KEY = "pitchTracker_guide_seen";
 const BALL_COLOR = "#4A6FA5";
 const STRIKE_COLOR = "#C62828";
 
@@ -61,6 +62,23 @@ export default function App() {
 
   const undoStack = useRef([]);
 
+  // WALKTHROUGH STATE
+const [isGuideOpen, setIsGuideOpen] = useState(false);
+const [guideStep, setGuideStep] = useState(0);
+const [isGuideMode, setIsGuideMode] = useState(false);
+const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+
+const originalDataRef = useRef(null);
+const guideTimerRef = useRef(null);
+
+// highlight targets
+const statsRef = useRef(null);
+const pitchSelectRef = useRef(null);
+const actionRef = useRef(null);
+const atBatRef = useRef(null);
+const statsCardRef = useRef(null);
+const resetRef = useRef(null);
+
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -78,6 +96,14 @@ export default function App() {
       }
     } catch (error) {
       console.error("Failed to load saved pitch tracker data:", error);
+    }
+        // FIRST-TIME GUIDE TRIGGER
+    const hasSeenGuide = localStorage.getItem(GUIDE_KEY);
+    if (!hasSeenGuide) {
+      setTimeout(() => {
+        startGuide();
+        localStorage.setItem(GUIDE_KEY, "true");
+      }, 500); // slight delay for UI mount
     }
   }, []);
 
@@ -266,6 +292,106 @@ export default function App() {
     });
   };
 
+  const DEMO_DATA = {
+  balls: 2,
+  strikes: 1,
+  totalPitches: 3,
+  pitchLog: [
+    { id: 1, pitch: "Fastball", result: "Strike", number: 1 },
+    { id: 2, pitch: "Curveball", result: "Ball", number: 2 },
+    { id: 3, pitch: "Fastball", result: "Ball", number: 3 },
+  ],
+  pitchCounts: {
+    Fastball: { ball: 1, strike: 1 },
+    Curveball: { ball: 1, strike: 0 },
+  },
+  
+};
+const GUIDE_STEPS = [
+  
+  {
+  title: "Welcome to Ballgame ⚾ 🥜 ",
+  description: "Track pitches, manage at-bats, and analyze performance in real time. Let’s walk through how to record your first pitch.",
+  //getTarget: () => document.body,
+  placement: "center",
+  },
+  {
+    title: "Select Pitch Type",
+    description: "Select the pitch type that was thrown. Customize your Pitch Arsenal anytime by tapping Edit to add or remove pitches.",
+    getTarget: () => pitchSelectRef.current,
+  },
+  {
+    title: "Record a Pitch",
+    description: "Tap Ball or Strike to log the pitch.",
+    getTarget: () => actionRef.current,
+  },
+  {
+    title: "Pitch Count",
+    description: "Balls, Strikes, and Total pitches update automatically as you record each pitch.",
+    getTarget: () => statsRef.current,
+  },
+  {
+    title: "View Current At-Bat",
+    description: "All pitches for the current at-bat appear here. Swipe left on a pitch to remove it, or tap New At-Bat when you're ready for the next batter.",
+    getTarget: () => atBatRef.current,
+    placement: "top",
+  },
+  {
+    title: "Analyze Performance",
+    description: "View pitch totals and ball and strike percentages here.",
+    getTarget: () => statsCardRef.current,
+    placement: "top",
+  },
+  {
+  title: "Clear Your Session",
+  description: "Open the menu here to reset all tracked pitches and clear your current data.",
+  getTarget: () => resetRef.current,
+  placement: "bottom",
+  },
+  {
+  title: "You're Ready to Go ⚾",
+  description: "You've learned how to log pitches, track counts, and analyze performance. You can revisit this guide anytime from the menu in the top right.",
+  placement: "center",
+  GetTarget: () => document.body,
+  }
+];
+const startGuide = () => {
+  originalDataRef.current = {
+    balls,
+    strikes,
+    totalPitches,
+    pitchLog,
+    pitchCounts,
+  };
+
+  setIsGuideMode(true);
+  setIsGuideOpen(true);
+  setGuideStep(0);
+
+  setBalls(DEMO_DATA.balls);
+  setStrikes(DEMO_DATA.strikes);
+  setTotalPitches(DEMO_DATA.totalPitches);
+  setPitchLog(DEMO_DATA.pitchLog);
+  setPitchCounts(DEMO_DATA.pitchCounts);
+};
+
+const endGuide = () => {
+  clearTimeout(guideTimerRef.current);
+
+  if (originalDataRef.current) {
+    const d = originalDataRef.current;
+    setBalls(d.balls);
+    setStrikes(d.strikes);
+    setTotalPitches(d.totalPitches);
+    setPitchLog(d.pitchLog);
+    setPitchCounts(d.pitchCounts);
+  }
+
+  setIsGuideMode(false);
+  setIsGuideOpen(false);
+  setGuideStep(0);
+};
+
   return (
   <>
   {/* HEADER */}
@@ -305,6 +431,7 @@ export default function App() {
 
     <Box sx={{ flex: 1, display: "flex", justifyContent: "flex-end" }}>
       <IconButton
+        ref={resetRef}
         onClick={(e) => setAnchorEl(e.currentTarget)}
         sx={{ color: "#fff" }}
       >
@@ -314,22 +441,31 @@ export default function App() {
   </Toolbar>
 </AppBar>
 <Container maxWidth="sm" sx={{ pb: 4 }}>
-      
 
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={() => setAnchorEl(null)}
-      >
-        <MenuItem
-          onClick={() => {
-            setAnchorEl(null);
-            setConfirmOpen(true);
-          }}
-        >
-          Reset All
-        </MenuItem>
-      </Menu>
+  <Menu
+    anchorEl={anchorEl}
+    open={Boolean(anchorEl)}
+    onClose={() => setAnchorEl(null)}
+  >
+    <MenuItem
+      onClick={() => {
+        setAnchorEl(null);
+        startGuide();
+      }}
+    >
+      User Guide
+    </MenuItem>
+
+    <MenuItem
+      onClick={() => {
+        setAnchorEl(null);
+        setConfirmOpen(true);
+      }}
+    >
+      Reset All
+    </MenuItem>
+  </Menu>
+      
 
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
         <DialogTitle>Reset All Data?</DialogTitle>
@@ -344,7 +480,7 @@ export default function App() {
         </DialogActions>
       </Dialog>
 
-      <Card sx={{ mt: 3 }}>
+      <Card ref={statsRef} sx={{ mt: 3 }}>
         <CardContent sx={{ display: "flex", textAlign: "center" }}>
           <Box flex={1}>
             <Typography variant="caption">BALLS</Typography>
@@ -367,7 +503,7 @@ export default function App() {
         </CardContent>
       </Card>
 
-      <Card sx={{ mt: 3 }}>
+      <Card ref={pitchSelectRef} sx={{ mt: 3 }}>
         <CardContent>
           <SectionTitle
             title="Select Pitch"
@@ -407,7 +543,7 @@ export default function App() {
         </CardContent>
       </Card>
 
-      <Card sx={{ mt: 3 }}>
+      <Card ref={actionRef} sx={{ mt: 3 }}>
         <CardContent>
           <Box display="flex" gap={2}>
             <Button
@@ -437,7 +573,7 @@ export default function App() {
         </CardContent>
       </Card>
 
-      <Card sx={{ mt: 3 }}>
+      <Card ref={atBatRef} sx={{ mt: 3 }}>
         <CardContent>
           <SectionTitle
             title="Current At-Bat"
@@ -472,7 +608,7 @@ export default function App() {
         </CardContent>
       </Card>
 
-      <Card sx={{ mt: 3 }}>
+      <Card ref={statsCardRef} sx={{ mt: 3 }}>
         <CardContent>
           <SectionTitle title="Pitch Stats" />
 
@@ -555,6 +691,22 @@ export default function App() {
         }
       />
     </Container>
+{isGuideOpen && GUIDE_STEPS[guideStep] && (
+  <GuideOverlay
+    step={GUIDE_STEPS[guideStep]}
+    stepIndex={guideStep}
+    totalSteps={GUIDE_STEPS.length}
+    onNext={() => {
+      if (guideStep === GUIDE_STEPS.length - 1) {
+        endGuide();
+      } else {
+        setGuideStep((s) => s + 1);
+      }
+    }}
+    onBack={() => setGuideStep((s) => Math.max(s - 1, 0))}
+    onClose={endGuide}
+  />
+)}
 </>
 );
 }
@@ -672,5 +824,297 @@ const iconOpacity = useTransform(x, [-80, -40], [1, 0]);
         </motion.div>
       </Box>
     </motion.div>
+  );
+}
+function GuideOverlay({ step, stepIndex, totalSteps, onNext, onBack, onClose }) {
+  const PADDING = 20;
+const HEADER_OFFSET = 64;
+
+const [rect, setRect] = React.useState(null);
+const hasScrolledRef = React.useRef(false);
+const hasTarget = typeof step.getTarget === "function";
+
+// Reset `rect` the instant the step changes, before this render's
+// tooltipStyle/spotlight math runs. Otherwise a step with no target
+// (Welcome) can render for a frame using the PREVIOUS step's rect,
+// since rect is normally only cleared inside the effect below.
+
+
+  const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+  const tooltipWidth = 320;
+const margin = 12;
+
+
+const tooltipStyle = hasTarget && rect
+  ? (() => {
+      let top = 0;
+      let left = 0;
+      let transform = "";
+
+      switch (step.placement) {
+        case "top":
+          top = rect.top - margin;
+          left = rect.left + rect.width / 2;
+          transform = "translate(-50%, -100%)";
+          break;
+
+        case "bottom":
+          top = rect.bottom + margin;
+          left = rect.left + rect.width / 2;
+          transform = "translateX(-50%)";
+          break;
+
+        case "left":
+          top = rect.top + rect.height / 2;
+          left = rect.left - margin;
+          transform = "translate(-100%, -50%)";
+          break;
+
+        case "right":
+          top = rect.top + rect.height / 2;
+          left = rect.right + margin;
+          transform = "translateY(-50%)";
+          break;
+
+        default:
+          top = rect.bottom + margin;
+          left = rect.left + rect.width / 2;
+          transform = "translateX(-50%)";
+      }
+
+      const safeLeft = clamp(
+        left,
+        tooltipWidth / 2 + 8,
+        window.innerWidth - tooltipWidth / 2 - 8
+      );
+
+      const tooltipHeight = Math.min(200, window.innerHeight * 0.4);
+
+      const safeTop = clamp(
+        top,
+        8,
+        window.innerHeight - tooltipHeight - 8
+      );
+
+      return {
+        position: "fixed",
+        top: safeTop,
+        left: safeLeft,
+        transform,
+        width: tooltipWidth,
+        maxWidth: "90vw",
+        zIndex: theme => theme.zIndex.modal + 1,
+      };
+    })()
+  : {
+    position: "fixed",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    width: tooltipWidth,
+    maxWidth: "90vw",
+    zIndex: theme => theme.zIndex.modal + 1,
+  };
+const isFullyInViewport = (rect) => {
+  return (
+    rect.top >= 0 &&
+    rect.left >= 0 &&
+    rect.bottom <= window.innerHeight &&
+    rect.right <= window.innerWidth
+  );
+};
+  useEffect(() => {
+  hasScrolledRef.current = false;
+
+  // Welcome step has no target
+  if (!hasTarget) {
+    setRect(null);
+    return;
+  }
+
+  setRect(null);
+
+  let frame;
+
+  const update = () => {
+    const el = step.getTarget?.();
+    if (!el) {
+  setRect(null);
+  return;
+}
+
+    const next = el.getBoundingClientRect();
+    // ✅ Check if element is fully visible
+// AFTER
+const isFullyVisible =
+  next.top >= HEADER_OFFSET &&
+  next.left >= 0 &&
+  next.bottom <= window.innerHeight &&
+  next.right <= window.innerWidth;
+
+if (!hasScrolledRef.current && !isFullyVisible) {
+  hasScrolledRef.current = true;
+
+  // scrollIntoView's "center" doesn't know the header exists and can
+  // still land the target underneath it. Center against the space
+  // BELOW the header instead.
+  const usableHeight = window.innerHeight - HEADER_OFFSET;
+  const targetCenterY = next.top + next.height / 2;
+  const desiredCenterY = HEADER_OFFSET + usableHeight / 2;
+  const targetCenterX = next.left + next.width / 2;
+  const desiredCenterX = window.innerWidth / 2;
+
+  window.scrollBy({
+    top: targetCenterY - desiredCenterY,
+    left: targetCenterX - desiredCenterX,
+    behavior: "smooth",
+  });
+
+  return;
+}
+
+    // Prevent unnecessary renders (huge performance win)
+    setRect(prev => {
+      if (
+        prev &&
+        prev.top === next.top &&
+        prev.left === next.left &&
+        prev.width === next.width &&
+        prev.height === next.height
+      ) {
+        return prev;
+      }
+      return next;
+    });
+  };
+
+  const scheduleUpdate = () => {
+    cancelAnimationFrame(frame);
+    frame = requestAnimationFrame(update);
+  };
+
+  scheduleUpdate();
+
+  window.addEventListener("resize", scheduleUpdate);
+  window.addEventListener("scroll", scheduleUpdate, true); // 👈 important
+
+  return () => {
+    cancelAnimationFrame(frame);
+    window.removeEventListener("resize", scheduleUpdate);
+    window.removeEventListener("scroll", scheduleUpdate, true);
+  };
+}, [step, hasTarget]);
+
+
+  return (
+    <>
+      {/* DIM BACKGROUND - FOUR PANEL SPOTLIGHT */}
+{hasTarget && rect ? (
+  <>
+    {/* TOP */}
+    <Box
+      sx={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        height: Math.max(0, rect.top - PADDING),
+        bgcolor: "rgba(15,23,42,0.45)",
+        zIndex: theme => theme.zIndex.modal + 1,
+        pointerEvents: "auto",
+      }}
+    />
+
+    {/* LEFT */}
+    <Box
+      sx={{
+        position: "fixed",
+        top: Math.max(0, rect.top - PADDING),
+        left: 0,
+        width: Math.max(0, rect.left - PADDING),
+        height: rect.height + PADDING * 2,
+        bgcolor: "rgba(15,23,42,0.45)",
+        zIndex: theme => theme.zIndex.modal + 1,
+        pointerEvents: "auto",
+      }}
+    />
+
+    {/* RIGHT */}
+    <Box
+  sx={{
+    position: "fixed",
+    top: Math.max(0, rect.top - PADDING),
+    left: rect.right + PADDING,
+    right: 0,
+    height: rect.height + PADDING * 2,
+    bgcolor: "rgba(15,23,42,0.45)",
+    zIndex: theme => theme.zIndex.modal + 1,
+    pointerEvents: "auto",
+  }}
+/>
+
+    {/* BOTTOM */}
+    <Box
+      sx={{
+        position: "fixed",
+        left: 0,
+        right: 0,
+        top: rect.bottom + PADDING,
+        bottom: 0,
+        bgcolor: "rgba(15,23,42,0.45)",
+        zIndex: theme => theme.zIndex.modal + 1,
+        pointerEvents: "auto",
+      }}
+    />
+  </>
+) : (
+  // WELCOME STEP - FULL SCREEN DIM
+  <Box
+    sx={{
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(15,23,42,0.55)",
+      backdropFilter: "blur(3px)",
+      zIndex: 1300,
+      pointerEvents: "auto",
+    }}
+  />
+)}
+
+      {/* TOOLTIP */}
+<Card sx={tooltipStyle}>
+  <CardContent>
+    <Typography variant="h6">{step.title}</Typography>
+    <Typography variant="body2" sx={{ mt: 1 }}>
+      {step.description}
+    </Typography>
+
+    <Box
+      mt={2}
+      display="flex"
+      justifyContent="space-between"
+      alignItems="center"
+    >
+      <Button onClick={onClose}>Skip</Button>
+
+      <Typography variant="caption">
+        {stepIndex + 1} / {totalSteps}
+      </Typography>
+
+      <Box>
+        <Button onClick={onBack} disabled={stepIndex === 0}>
+          Back
+        </Button>
+        <Button onClick={onNext} variant="contained">
+          {stepIndex === totalSteps - 1 ? "Done" : "Next"}
+        </Button>
+      </Box>
+    </Box>
+  </CardContent>
+</Card>
+    </>
   );
 }
