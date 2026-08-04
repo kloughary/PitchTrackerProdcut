@@ -30,6 +30,7 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import logo from "./assets/Casual Logo with Centered Design Elements.svg";
 
 import { motion, AnimatePresence, useMotionValue, useAnimation, useTransform } from "framer-motion";
+import { Analytics } from "@vercel/analytics/react";
 
 const STORAGE_KEY = "pitchTracker";
 const GUIDE_KEY = "pitchTracker_guide_seen";
@@ -707,6 +708,7 @@ const endGuide = () => {
     onClose={endGuide}
   />
 )}
+<Analytics />
 </>
 );
 }
